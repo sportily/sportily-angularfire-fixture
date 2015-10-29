@@ -3,20 +3,16 @@ angular.module('sportily.fixture.templates', ['templates/sportily/fixture/scores
 angular.module("templates/sportily/fixture/scores.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("templates/sportily/fixture/scores.html",
     "<span class=\"sportily-scores\">\n" +
-    "    <span class=\"sportily-scores__home\">{{ fixture.details.home_entry.score }}</span>\n" +
+    "    <span class=\"sportily-scores__home\">{{ fixture.state.scores.home }}</span>\n" +
     "    <span class=\"sportily-scores__vs\">–</span>\n" +
-    "    <span class=\"sportily-scores__home\">{{ fixture.details.away_entry.score }}</span>\n" +
+    "    <span class=\"sportily-scores__home\">{{ fixture.state.scores.away }}</span>\n" +
     "<span>\n" +
     "");
 }]);
 
 angular.module("templates/sportily/fixture/timeline.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("templates/sportily/fixture/timeline.html",
-    "<pre>{{ fixture.details }}</pre>\n" +
-    "\n" +
-    "<pre>{{ fixture.events }}</pre>\n" +
-    "\n" +
-    "<!--<ul class=\"timeline\">\n" +
+    "<ul class=\"timeline\">\n" +
     "    <li class=\"timeline__item\" ng-if=\"fixture.state.inProgress\">\n" +
     "        <div class=\"event event--flow\">{{ fixture.state.gameTime | gameTime }}</div>\n" +
     "    </li>\n" +
@@ -24,7 +20,7 @@ angular.module("templates/sportily/fixture/timeline.html", []).run(["$templateCa
     "        ng-repeat=\"event in fixture.events | reverse\"\n" +
     "        ng-include=\"'templates/sportily/fixture/timeline/' + event.type + '.html'\">\n" +
     "    </li>\n" +
-    "</ul>-->\n" +
+    "</ul>\n" +
     "");
 }]);
 
@@ -36,12 +32,17 @@ angular.module("templates/sportily/fixture/timeline/assist.html", []).run(["$tem
 angular.module("templates/sportily/fixture/timeline/foul.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("templates/sportily/fixture/timeline/foul.html",
     "<div class=\"event event--foul\"\n" +
-    "    ng-class=\"{ 'event--home' : event.entry_id == fixture.details.home_entry.id }\">\n" +
+    "    ng-class=\"{ 'event--home' : event.entry_id == fixture.details.home_entry.division_entry_id }\">\n" +
     "    <div class=\"event__icon\"><i class=\"fa fa-thumbs-down\"></i></div>\n" +
     "    <div class=\"event__panel\">\n" +
     "        <div class=\"event__time\">{{:: event.game_time | gameTime }}</div>\n" +
     "        <div class=\"event__description\">\n" +
-    "            Foul committed by {{:: fixture.participants.lookup[event.participant_id].name | person }}\n" +
+    "            <span ng-if=\"event.participant_id\">\n" +
+    "                Foul committed by {{:: fixture.participants.lookup[event.participant_id].name | person }}\n" +
+    "            </span>\n" +
+    "            <span ng-if=\"!event.participant_id\">\n" +
+    "                Bench Penalty!\n" +
+    "            </span>\n" +
     "        </div>\n" +
     "        <div class=\"event__aux\" ng-if=\"event.penalty_seconds\">\n" +
     "            Awarded {{:: event.penalty_seconds / 60 }} penalty minutes\n" +
@@ -50,7 +51,6 @@ angular.module("templates/sportily/fixture/timeline/foul.html", []).run(["$templ
     "            “{{:: event.notes }}”\n" +
     "        </div>\n" +
     "    </div>\n" +
-    "    <div delete-event=\"event\" fixture=\"fixture\" name=\"Foul committed by {{:: fixture.participants.lookup[event.participant_id].name | person }}\"></div>\n" +
     "</div>\n" +
     "");
 }]);
@@ -80,12 +80,13 @@ angular.module("templates/sportily/fixture/timeline/game_start.html", []).run(["
 angular.module("templates/sportily/fixture/timeline/goal.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("templates/sportily/fixture/timeline/goal.html",
     "<div class=\"event event--goal\"\n" +
-    "    ng-class=\"{ 'event--home' : event.entry_id == fixture.details.home_entry.id }\">\n" +
+    "    ng-class=\"{ 'event--home' : event.entry_id == fixture.details.home_entry.division_entry_id }\">\n" +
     "    <div class=\"event__icon\"><i class=\"fa fa-star\"></i></div>\n" +
     "    <div class=\"event__panel\">\n" +
     "        <div class=\"event__time\">{{:: event.game_time | gameTime }}</div>\n" +
     "        <div class=\"event__description\">\n" +
-    "            Goal! Scored by {{:: fixture.participants.lookup[event.participant_id].name | person }}.\n" +
+    "            <strong>{{:: event.scores.home }} – {{:: event.scores.away }}:</strong>\n" +
+    "            Goal scored by {{:: fixture.participants.lookup[event.participant_id].name | person }}\n" +
     "        </div>\n" +
     "        <div class=\"event__aux\" ng-if=\"event.children\">\n" +
     "            Assisted by\n" +
@@ -95,7 +96,6 @@ angular.module("templates/sportily/fixture/timeline/goal.html", []).run(["$templ
     "            “{{:: event.notes }}”\n" +
     "        </div>\n" +
     "    </div>\n" +
-    "    <div delete-event=\"event\" fixture=\"fixture\" name=\"Goal! Scored by {{:: fixture.participants.lookup[event.participant_id].name | person }}\"></div>\n" +
     "</div>\n" +
     "");
 }]);
@@ -103,18 +103,18 @@ angular.module("templates/sportily/fixture/timeline/goal.html", []).run(["$templ
 angular.module("templates/sportily/fixture/timeline/own_goal.html", []).run(["$templateCache", function($templateCache) {
   $templateCache.put("templates/sportily/fixture/timeline/own_goal.html",
     "<div class=\"event event--own_goal\"\n" +
-    "    ng-class=\"{ 'event--home' : event.entry_id != fixture.details.home_entry.id }\">\n" +
+    "    ng-class=\"{ 'event--home' : event.entry_id != fixture.details.home_entry.division_entry_id }\">\n" +
     "    <div class=\"event__icon\"><i class=\"fa fa-star\"></i></div>\n" +
     "    <div class=\"event__panel\">\n" +
     "        <div class=\"event__time\">{{:: event.game_time | gameTime }}</div>\n" +
     "        <div class=\"event__description\">\n" +
+    "            <strong>{{:: event.scores.home }} – {{:: event.scores.away }}:</strong>\n" +
     "            Own Goal!\n" +
     "        </div>\n" +
     "        <div class=\"event__notes\" ng-if=\"event.notes\">\n" +
     "            “{{:: event.notes }}”\n" +
     "        </div>\n" +
     "    </div>\n" +
-    "    <div delete-event=\"event\" fixture=\"fixture\" name=\"Own Goal!\"></div>\n" +
     "</div>\n" +
     "");
 }]);

@@ -1,16 +1,16 @@
 (function() {
   var module;
 
-  module = angular.module('sportily.fixture', ['restangular', 'sportily.fixture.filters', 'sportily.fixture.service', 'sportily.fixture.templates']);
+  module = angular.module('sportily.fixture', ['sportily.fixture.filters', 'sportily.fixture.service', 'sportily.fixture.templates']);
 
   module.directive('sportilyFixture', [
-    'FixtureService', function(FixtureService) {
+    'Fixture', function(Fixture) {
       return {
         restrict: 'A',
         scope: true,
-        link: function(scope, element, attrs, ctrl) {
+        link: function(scope, element, attrs) {
           if (attrs.sportilyFixture) {
-            return scope.fixture = FixtureFactory.get(attrs.sportilyFixture);
+            return scope.fixture = Fixture(attrs.sportilyFixture);
           }
         }
       };
@@ -38,25 +38,43 @@
 (function() {
   var module;
 
+  module = angular.module('sportily.fixture.events', ['firebase']);
+
+  module.factory('LiveEvents', [
+    '$firebaseArray', function($firebaseArray) {
+      return function(id) {
+        var base, ref;
+        base = 'https://blistering-fire-4761.firebaseio.com/fixtures/';
+        ref = new Firebase(base + id + '/events');
+        return $firebaseArray(ref);
+      };
+    }
+  ]);
+
+}).call(this);
+
+(function() {
+  var module, padLeft, ucfirst;
+
   module = angular.module('sportily.fixture.filters', []);
+
+  ucfirst = function(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  };
+
+  padLeft = function(str, ch, len) {
+    if (str.length >= len) {
+      return str;
+    } else {
+      return padLeft(ch + str, ch, len);
+    }
+  };
 
   module.filter('person', function() {
     return function(input) {
-      return input.given_name + " " + input.family_name;
+      return ucfirst(input.given_name) + " " + ucfirst(input.family_name);
     };
   });
-
-  String.prototype.ucfirst = function() {
-    return this.charAt(0).toUpperCase() + this.slice(1);
-  };
-
-  String.prototype.padLeft = function(ch, len) {
-    if (this.length >= len) {
-      return this;
-    } else {
-      return (ch + this).padLeft(ch, len);
-    }
-  };
 
   module.filter('gameTime', function() {
     return function(input) {
@@ -65,17 +83,11 @@
       hours = '' + duration.hours();
       minutes = '' + duration.minutes();
       seconds = '' + duration.seconds();
-      str = minutes.padLeft('0', 2) + ':' + seconds.padLeft('0', 2);
+      str = padLeft(minutes, '0', 2) + ':' + padLeft(seconds, '0', 2);
       if (duration.hours() > 0) {
         str = hours + ':' + str;
       }
       return str;
-    };
-  });
-
-  module.filter('minutes', function() {
-    return function(input) {
-      return ~~(input / 60000) + '’';
     };
   });
 
@@ -92,163 +104,190 @@
 (function() {
   var module;
 
-  module = angular.module('sportily.fixture.service', ['sportily.api', 'firebase']);
+  module = angular.module('sportily.fixture.service', ['sportily.api', 'sportily.fixture.events', 'sportily.fixture.state']);
 
-  module.factory('FixtureFactory', function(Fixtures, $firebaseArray) {
-    var Fixture, FixtureFactory;
-    Fixture = (function() {
-      function Fixture(id1) {
-        this.id = id1;
-        this._initDetails();
-        this._initEvents();
-      }
+  module.factory('Fixture', [
+    'Fixtures', 'Participants', 'FixtureState', 'LiveEvents', function(Fixtures, Participants, FixtureState, LiveEvents) {
+      var Fixture;
+      Fixture = (function() {
+        function Fixture(id1) {
+          this.id = id1;
+          this._initDetails();
+          this._initParticipants();
+          this._initEvents();
+          this._initState();
+        }
 
-      Fixture.prototype._initDetails = function() {
-        return Fixtures.one(this.id).get().then(function(details) {
-          return this.details = details;
-        });
-      };
+        Fixture.prototype._initDetails = function() {
+          return Fixtures.one(this.id).get().then((function(_this) {
+            return function(details) {
+              return _this.details = details;
+            };
+          })(this));
+        };
 
-      Fixture.prototype._initEvents = function() {
-        var ref;
-        ref = new Firebase('https://blistering-fire-4761.firebaseio.com/fixtures/' + this.id + '/events');
-        return this.events = $firebaseArray(ref);
-      };
+        Fixture.prototype._initParticipants = function() {
+          return Participants.getList({
+            fixture_id: this.id
+          }).then((function(_this) {
+            return function(participants) {
+              return _this.participants = participants;
+            };
+          })(this));
+        };
 
-      return Fixture;
+        Fixture.prototype._initEvents = function() {
+          this.events = LiveEvents(this.id);
+          return this.events.$loaded((function(_this) {
+            return function() {
+              return _this._initState();
+            };
+          })(this));
+        };
 
-    })();
-    FixtureFactory = (function() {
-      function FixtureFactory() {}
+        Fixture.prototype._initState = function() {
+          this.state = FixtureState(this);
+          return this.state.update();
+        };
 
-      FixtureFactory.prototype.get = function(id) {
+        return Fixture;
+
+      })();
+      return function(id) {
         return new Fixture(id);
       };
+    }
+  ]);
 
-      return FixtureFactory;
+}).call(this);
 
-    })();
-    return new FixtureFactory();
-  });
+(function() {
+  var module,
+    bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
+  module = angular.module('sportily.fixture.state', []);
 
-  /*
-   *
-   * The fixture model object provides a convenient mechanism for working with
-   * fixtures and events of fixtures.
-   *
-  class Fixture
-  
-      constructor: (@q, @interval, @details, @events, @participants) ->
-          #@_updateGameState()
-          #@_linkEvent event for event in @events
-  
-  
-      _linkEvent: (event) ->
-          if event.parent_id
-              parent = @events.lookup[event.parent_id]
-              parent.children = [] unless parent.children
-              parent.children.push event
-  
-  
-      _updateGameTime: =>
-           * calculate the regular game time, assuming real-time input.
-          now = @state.pausedAt ? moment()
-          @state.gameTime = now.diff(@state.startedAt) - @state.pausedFor
-  
-           * if there is an event with a greater game time, use that.
-          [..., event] = @events
-          @state.gameTime = Math.max @state.gameTime, event.game_time if event?
-  
-  
-      _updateGameState: =>
-          @state =
-              inProgress: false
-              started: false
-              startedAt: null
-              finished: false
-              paused: false
-              pausedAt: null
-              pausedFor: 0
-              gameTime: null
-  
-          happenedAt = null
-          @events.forEach (event) =>
-              happenedAt = moment event.happened_at
-  
-              switch event.type
-                  when 'game_start'
-                      @state.started = true
-                      @state.startedAt = happenedAt
-                      @_startTimer()
-  
-                  when 'game_finish'
-                      @state.finished = true
-                      @state.paused = true
-                      @_stopTimer()
-  
-                  when 'game_pause'
-                      @state.paused = true
-                      @state.pausedAt = happenedAt
-                      @_stopTimer()
-  
-                  when 'game_resume'
-                      @state.paused = false
-                      @state.pausedFor += happenedAt.diff @state.pausedAt
-                      @state.pausedAt = null
-                      @_startTimer()
-  
-              event.game_time = happenedAt.diff(@state.startedAt) - @state.pausedFor
-  
-  
-           * the game is considered in progress when it's started, but not yet
-           * finished, regardless of whether it's paused.
-          @state.inProgress = @state.started && !@state.finished
-  
-           * ensure the game time starts off correctly.
-          @_updateGameTime()
-  
-  
-   *
-   * The fixture service is responsible for fetching details and events for a
-   * fixture, then wrapping those details in a new fixture model object.
-   *
-  class FixtureService
-  
-      constructor: (@q, @interval, @Fixtures, @Events, @Participants) ->
-  
-      get: (id) ->
-          promises =
-              details: @_details id
-              events: @_events id
-              participants: @_participants id
-  
-          @q.all(promises).then (data) =>
-              { details, events, participants } = data
-              new Fixture @q, @interval, details, events, participants
-  
-  
-      _details: (id) ->
-          @Fixtures.one(id).get()
-  
-  
-      _events: (id) ->
-          @Events.getList fixture_id: id
-  
-  
-      _participants: (id) ->
-          @Participants.getList fixture_id: id
-  
-  
-   * expose the fixture service as an angular service.
-  module.service 'FixtureService', [
-      '$q'
-      '$interval'
-      'Fixtures'
-      'Events'
-      'Participants'
-      FixtureService
-  ]
-   */
+  module.factory('FixtureState', [
+    '$interval', function($interval) {
+      var FixtureState;
+      FixtureState = (function() {
+        function FixtureState(fixture1) {
+          this.fixture = fixture1;
+          this._updateGameTime = bind(this._updateGameTime, this);
+          this.fixture.events.$watch((function(_this) {
+            return function() {
+              return _this.update();
+            };
+          })(this));
+        }
+
+        FixtureState.prototype.update = function() {
+          var happendAt, isHome, lookup;
+          this.inProgress = false;
+          this.started = false;
+          this.startedAt = null;
+          this.finished = false;
+          this.paused = false;
+          this.pausedAt = null;
+          this.pausedFor = 0;
+          this.gameTime = null;
+          this.scores = {
+            home: 0,
+            away: 0
+          };
+          lookup = {};
+          happendAt = null;
+          isHome = false;
+          this.fixture.events.forEach((function(_this) {
+            return function(event) {
+              var happenedAt, parent;
+              lookup[event.id] = event;
+              happenedAt = moment(event.happened_at);
+              isHome = event.entry_id === _this.fixture.details.home_entry.division_entry_id;
+              switch (event.type) {
+                case 'game_start':
+                  _this.started = true;
+                  _this.startedAt = happenedAt;
+                  _this._startTimer();
+                  break;
+                case 'game_finish':
+                  _this.finished = true;
+                  _this.paused = true;
+                  _this._stopTimer();
+                  break;
+                case 'game_pause':
+                  _this.paused = true;
+                  _this.pausedAt = happenedAt;
+                  _this._stopTimer();
+                  break;
+                case 'game_resume':
+                  _this.paused = false;
+                  _this.pausedFor += happenedAt.diff(_this.pausedAt);
+                  _this.pausedAt = null;
+                  _this._startTimer();
+                  break;
+                case 'goal':
+                  if (isHome) {
+                    _this.scores.home++;
+                  } else {
+                    _this.scores.away++;
+                  }
+                  break;
+                case 'own_goal':
+                  if (isHome) {
+                    _this.scores.away++;
+                  } else {
+                    _this.scores.home++;
+                  }
+              }
+              event.game_time = happenedAt.diff(_this.startedAt) - _this.pausedFor;
+              event.scores = {
+                home: _this.scores.home,
+                away: _this.scores.away
+              };
+              if (event.parent_id) {
+                parent = lookup[event.parent_id];
+                if (!parent.childre) {
+                  parent.children = [];
+                }
+                return parent.children.push(event);
+              }
+            };
+          })(this));
+          this.inProgress = this.started && !this.finished;
+          return this._updateGameTime();
+        };
+
+        FixtureState.prototype._updateGameTime = function() {
+          var event, now, ref, ref1;
+          now = (ref = this.pausedAt) != null ? ref : moment();
+          this.gameTime = now.diff(this.startedAt) - this.pausedFor;
+          ref1 = this.fixture.events, event = ref1[ref1.length - 1];
+          if (event != null) {
+            return this.gameTime = Math.max(this.gameTime, event.game_time);
+          }
+        };
+
+        FixtureState.prototype._startTimer = function() {
+          if (!this.timer) {
+            return this.timer = $interval(this._updateGameTime, 500);
+          }
+        };
+
+        FixtureState.prototype._stopTimer = function() {
+          if (this.timer) {
+            $interval.cancel(this.timer);
+          }
+          return this.timer = void 0;
+        };
+
+        return FixtureState;
+
+      })();
+      return function(fixture) {
+        return new FixtureState(fixture);
+      };
+    }
+  ]);
 
 }).call(this);

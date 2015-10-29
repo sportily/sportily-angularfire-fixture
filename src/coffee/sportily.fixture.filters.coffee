@@ -1,17 +1,17 @@
-module = angular.module 'sportily.fixture.filters', [ ]
+module = angular.module 'sportily.fixture.filters', []
+
+
+ucfirst = (str) ->
+    str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
+
+
+padLeft = (str, ch, len) ->
+    if str.length >= len then str else padLeft(ch + str, ch, len)
 
 
 module.filter 'person', ->
     (input) ->
-        input.given_name + " " + input.family_name
-
-
-String::ucfirst = ->
-    @charAt(0).toUpperCase() + @slice 1
-
-
-String::padLeft = (ch, len) ->
-    if @length >= len then @ else (ch + @).padLeft(ch, len)
+        ucfirst(input.given_name) + " " + ucfirst(input.family_name)
 
 
 module.filter 'gameTime', ->
@@ -20,14 +20,9 @@ module.filter 'gameTime', ->
         hours = '' + duration.hours()
         minutes = '' + duration.minutes()
         seconds = '' + duration.seconds()
-        str = minutes.padLeft('0', 2) + ':' + seconds.padLeft('0', 2)
+        str = padLeft(minutes, '0', 2) + ':' + padLeft(seconds, '0', 2)
         str = hours + ':' + str if duration.hours() > 0
         str
-
-
-module.filter 'minutes', ->
-    (input) ->
-        ~~(input / 60000) + '’'
 
 
 module.filter 'reverse', ->

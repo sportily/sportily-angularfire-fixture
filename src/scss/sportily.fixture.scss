@@ -44,13 +44,11 @@
 
     &--flow {
         text-align: center;
-        color: #bbb;
+        color: #888;
         background: white;
         margin-left: 0;
         padding: 0.5rem;
         margin-bottom: 2rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
     }
 
     &--home &__panel {
@@ -69,6 +67,12 @@
     padding: 2em 0;
     position: relative;
     list-style: none;
+    border: none;
+
+    &__item {
+        padding: 0;
+        border: none;
+    }
 
     &__item:last-child .event {
         margin-bottom: 0;
@@ -85,5 +89,38 @@
         bottom: 2em;
         margin-left: -1px;
 
+    }
+}
+
+.fixturehdr {
+    position: relative;
+
+    &::before {
+        content: ' ';
+    }
+
+    small {
+        font-size: inherit;
+        color: #8f8f8f;
+    }
+
+    &__home, &__away {
+        width: 50%;
+        position: absolute;
+        top: 0;
+    }
+    &__home {
+        left: 0;
+    }
+    &__away {
+        right: 0;
+        text-align: right;
+    }
+    &__scores {
+        position: absolute;
+        width: 8rem;
+        left: 50%;
+        margin-left: -4rem;
+        text-align: center;
     }
 }

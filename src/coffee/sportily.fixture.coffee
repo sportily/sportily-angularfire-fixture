@@ -1,17 +1,16 @@
 module = angular.module 'sportily.fixture', [
-    'restangular'
     'sportily.fixture.filters'
     'sportily.fixture.service'
     'sportily.fixture.templates'
 ]
 
-module.directive 'sportilyFixture', [ 'FixtureService', (FixtureService) ->
+module.directive 'sportilyFixture', [ 'Fixture', (Fixture) ->
     restrict: 'A'
     scope: true
 
-    link: (scope, element, attrs, ctrl) ->
+    link: (scope, element, attrs) ->
         if attrs.sportilyFixture
-            scope.fixture = FixtureFactory.get attrs.sportilyFixture
+            scope.fixture = Fixture attrs.sportilyFixture
 
 ]
 
