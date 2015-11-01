@@ -107,15 +107,19 @@
   module = angular.module('sportily.fixture.service', ['sportily.api', 'sportily.fixture.events', 'sportily.fixture.state']);
 
   module.factory('Fixture', [
-    'Fixtures', 'Participants', 'FixtureState', 'LiveEvents', function(Fixtures, Participants, FixtureState, LiveEvents) {
+    'Fixtures', 'Participants', 'FixtureState', 'LiveEvents', '$q', function(Fixtures, Participants, FixtureState, LiveEvents, $q) {
       var Fixture;
       Fixture = (function() {
         function Fixture(id1) {
+          var p1, p2;
           this.id = id1;
-          this._initDetails();
-          this._initParticipants();
-          this._initEvents();
-          this._initState();
+          p1 = this._initDetails();
+          p2 = this._initParticipants();
+          $q.all([p1, p2]).then((function(_this) {
+            return function() {
+              return _this._initEvents();
+            };
+          })(this));
         }
 
         Fixture.prototype._initDetails = function() {

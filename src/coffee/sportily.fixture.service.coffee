@@ -10,16 +10,17 @@ module.factory 'Fixture', [
     'Participants'
     'FixtureState'
     'LiveEvents'
+    '$q'
 
-    (Fixtures, Participants, FixtureState, LiveEvents) ->
+    (Fixtures, Participants, FixtureState, LiveEvents, $q) ->
 
         class Fixture
 
             constructor: (@id) ->
-                @_initDetails()
-                @_initParticipants()
-                @_initEvents()
-                @_initState()
+                p1 = @_initDetails()
+                p2 = @_initParticipants()
+                $q.all([p1, p2]).then =>
+                    @_initEvents()
 
             _initDetails: ->
                 Fixtures.one(@id).get()
